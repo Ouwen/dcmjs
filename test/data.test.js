@@ -3,6 +3,7 @@ import "regenerator-runtime/runtime.js";
 import { jest } from "@jest/globals";
 import dcmjs from "../src/index.js";
 import fs from "fs";
+import { promisify } from "util";
 import fsPromises from "fs/promises";
 import os from "os";
 import path from "path";
@@ -594,4 +595,63 @@ it("test_custom_dictionary", () => {
     expect(dataset.TrialName).toEqual("Test Trial");
     //check that all other fields were preserved, 15 original + 1 for _vr and +1 for "TrialName"
     expect(Object.keys(dataset).length).toEqual(17);
+});
+
+it("Reads binary data into an ArrayBuffer", async () => {
+    const dicomUrl =
+        "https://github.com/dcmjs-org/data/releases/download/binary-tag/binary-tag.dcm";
+    const dicomPath = path.join(os.tmpdir(), "binary-tag.zip");
+
+    await downloadToFile(dicomUrl, dicomPath);
+
+    const fileData = await promisify(fs.readFile)("test/binary-tag.dcm");
+    const dicomDict = DicomMessage.readFile(fileData.buffer);
+    const dataset = dcmjs.data.DicomMetaDictionary.naturalizeDataset(
+        dicomDict.dict
+    );
+
+    expect(dataset.PixelData).toBeInstanceOf(Array);
+    expect(dataset.PixelData[0]).toBeInstanceOf(ArrayBuffer);
+    expect([...new Uint8Array(dataset.PixelData[0])]).toEqual([2, 3, 4, 5, 6]);
+});
+
+it("Reads a multiframe DICOM which has trailing padding", async () => {
+    const dicomUrl =
+        "https://github.com/dcmjs-org/data/releases/download/binary-parsing-stessors/multiframe-ultrasound.dcm";
+    const dicomPath = path.join(os.tmpdir(), "multiframe-dicom.zip");
+
+    await downloadToFile(dicomUrl, dicomPath);
+
+    const dicomDict = DicomMessage.readFile(fs.readFileSync(dicomPath).buffer);
+    const dataset = dcmjs.data.DicomMetaDictionary.naturalizeDataset(
+        dicomDict.dict
+    );
+
+    expect(dataset.PixelData.length).toEqual(29);
+    expect(dataset.PixelData[0]).toBeInstanceOf(ArrayBuffer);
+    expect(dataset.PixelData[0].byteLength).toEqual(104976);
+    expect(dataset.PixelData[1].byteLength).toEqual(104920);
+    expect(dataset.PixelData[27].byteLength).toEqual(103168);
+    expect(dataset.PixelData[28].byteLength).toEqual(103194);
+});
+
+it("Reads a multiframe DICOM with large private tags before and after the image data", async () => {
+    const dicomUrl =
+        "https://github.com/dcmjs-org/data/releases/download/binary-parsing-stessors/large-private-tags.dcm";
+    const dicomPath = path.join(os.tmpdir(), "large-private-tags.dcm");
+
+    await downloadToFile(dicomUrl, dicomPath);
+
+    const dicomDict = DicomMessage.readFile(fs.readFileSync(dicomPath).buffer);
+    const dataset = dcmjs.data.DicomMetaDictionary.naturalizeDataset(
+        dicomDict.dict
+    );
+
+    expect(dataset.PixelData).toBeInstanceOf(Array);
+    expect(dataset.PixelData.length).toEqual(130);
+    expect(dataset.PixelData[0]).toBeInstanceOf(ArrayBuffer);
+    expect(dataset.PixelData[0].byteLength).toEqual(61518);
+    expect(dataset.PixelData[1].byteLength).toEqual(61482);
+    expect(dataset.PixelData[128].byteLength).toEqual(62144);
+    expect(dataset.PixelData[129].byteLength).toEqual(62148);
 });
