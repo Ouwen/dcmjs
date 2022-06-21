@@ -111,7 +111,7 @@ class ValueRepresentation {
                     written.push(0);
                 } else {
                     var self = this;
-                    valueArgs[0].forEach(function (v, k) {
+                    valueArgs[0].forEach(function(v, k) {
                         if (self.allowMultiple() && k > 0) {
                             stream.writeHex("5C");
                             //byteCount++;
@@ -405,8 +405,10 @@ class BinaryRepresentation extends ValueRepresentation {
                         const rangeStream = new ReadBufferStream(
                             stream.buffer,
                             stream.isLittleEndian,
-                            start,
-                            stop
+                            {
+                                start: start,
+                                stop: stop
+                            }
                         );
 
                         let frameSize = 0;

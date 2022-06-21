@@ -304,12 +304,10 @@ class BufferStream {
             throw new Error("Request more than currently allocated buffer");
         }
 
-        const newBuf = new ReadBufferStream(
-            this.buffer,
-            null,
-            this.offset,
-            this.offset + length
-        );
+        const newBuf = new ReadBufferStream(this.buffer, null, {
+            start: this.offset,
+            stop: this.offset + length
+        });
         this.increment(length);
 
         return newBuf;
@@ -330,10 +328,17 @@ class BufferStream {
 }
 
 class ReadBufferStream extends BufferStream {
-    constructor(buffer, littleEndian, start, end) {
+    constructor(
+        buffer,
+        littleEndian,
+        options = {
+            start: null,
+            stop: null
+        }
+    ) {
         super(buffer, littleEndian);
-        this.offset = start || 0;
-        this.size = end || this.buffer.byteLength;
+        this.offset = options.start || 0;
+        this.size = options.stop || this.buffer.byteLength;
         this.startOffset = this.offset;
         this.endOffset = this.size;
     }
